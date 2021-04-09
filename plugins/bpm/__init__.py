@@ -28,13 +28,14 @@
 import time
 
 from gi.repository import Gdk
+from gi.repository import GLib
 from gi.repository import Gtk
-from gi.repository import GObject
 
 from xl import event, providers, settings
 
 from xl.nls import gettext as _
 from xlgui.guiutil import GtkTemplate
+import xlgui.main
 from xlgui.widgets import menu, dialogs
 
 from . import bpmdetect
@@ -46,7 +47,7 @@ menu_providers = ['track-panel-menu', 'playlist-context-menu']
 
 class BPMCounterPlugin:
     """
-        Implements logic for plugin
+    Implements logic for plugin
     """
 
     # Provider API requirement
@@ -73,7 +74,7 @@ class BPMCounterPlugin:
 
     def disable(self, exaile):
         """
-            Called when the plugin is disabled
+        Called when the plugin is disabled
         """
         providers.unregister('mainwindow-info-area-widget', self)
 
@@ -81,9 +82,9 @@ class BPMCounterPlugin:
             for p in menu_providers:
                 providers.unregister(p, self.menuitem)
 
-    def create_widget(self, info_area):
+    def create_widget(self, info_area: xlgui.main.MainWindowTrackInfoPane):
         """
-            mainwindow-info-area-widget provider API method
+        mainwindow-info-area-widget provider API method
         """
         return BPMWidget(info_area.get_player(), self)
 
@@ -124,11 +125,11 @@ class BPMCounterPlugin:
             bpm = int(round(float(bpm)))
 
             msg = Gtk.MessageDialog(
-                parent_window,
-                Gtk.DialogFlags.MODAL,
-                Gtk.MessageType.QUESTION,
-                Gtk.ButtonsType.YES_NO,
-                _('Set BPM of %d on %s?') % (bpm, track.get_tag_display('title')),
+                buttons=Gtk.ButtonsType.YES_NO,
+                message_type=Gtk.MessageType.QUESTION,
+                modal=True,
+                text=_('Set BPM of %d on %s?') % (bpm, track.get_tag_display('title')),
+                transient_for=parent_window,
             )
             msg.set_default_response(Gtk.ResponseType.NO)
             result = msg.run()
@@ -142,7 +143,7 @@ class BPMCounterPlugin:
                 dialogs.error(
                     None,
                     "Error writing BPM to %s"
-                    % GObject.markup_escape_text(track.get_loc_for_io()),
+                    % GLib.markup_escape_text(track.get_loc_for_io()),
                 )
 
 

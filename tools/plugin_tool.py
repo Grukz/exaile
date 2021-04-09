@@ -53,10 +53,8 @@ if __name__ == '__main__':
     os.environ['EXAILE_DIR'] = exaile_dir
     sys.path.insert(0, exaile_dir)
 
-    import xl.xdg
-    xl.xdg.local_hack = False
     import xl.version
-    v = '%s' % (xl.version.__version__.split("-")[0])
+    v = '%s' % (xl.version.__version__.split("-")[0].split("+")[0])
 
     arg = sys.argv[1] if len(sys.argv) > 1 else ''
 

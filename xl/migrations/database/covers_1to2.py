@@ -30,8 +30,6 @@ __all__ = ['migrate']
 import logging
 import os
 
-from gi.repository import Gio
-
 import xl.collection
 import xl.covers
 
@@ -40,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 def old_get_track_key(track):
     """
-        Get the db mapping key for a track
+    Get the db mapping key for a track
     """
     album = track.get_tag_raw("album", join=True)
     compilation = track.get_tag_raw("__compilation")

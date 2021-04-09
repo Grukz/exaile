@@ -39,7 +39,7 @@ from gi.repository import Gtk
 from xl import common, player, playlist, settings, trax
 from xl.nls import gettext as _
 from xlgui.widgets import dialogs, rating, menu
-from xlgui import properties
+from xlgui import panel, properties
 
 ### TRACKS ITEMS ###
 # These items act on a set of Tracks, by default 'selected-tracks' from
@@ -57,8 +57,8 @@ def generic_get_tracks_func(parent, context):
 
 class RatingMenuItem(menu.MenuItem):
     """
-        A menu item displaying rating images
-        and allowing for selection of ratings
+    A menu item displaying rating images
+    and allowing for selection of ratings
     """
 
     def __init__(self, name, after, get_tracks_func=generic_get_tracks_func):
@@ -86,7 +86,7 @@ class RatingMenuItem(menu.MenuItem):
     # most of this function isn't safe to use from a (interacts with UI elements)
     def on_show(self, widget, menu, parent, context):
         """
-            Updates the menu item on show
+        Updates the menu item on show
         """
         tracks = self.get_tracks_func(parent, context)
         rating = trax.util.get_rating_from_tracks(tracks)
@@ -98,7 +98,7 @@ class RatingMenuItem(menu.MenuItem):
 
     def on_rating_changed(self, widget, rating, menu, parent, context):
         """
-            Passes the 'rating-changed' signal
+        Passes the 'rating-changed' signal
         """
         tracks = self.get_tracks_func(parent, context)
         for track in tracks:
@@ -168,22 +168,21 @@ def AppendMenuItem(name, after, get_tracks_func=generic_get_tracks_func):
     )
 
 
-def _properties_cb(widget, name, parent, context, get_tracks_func, dialog_parent):
+def _properties_cb(widget, name, parent, context, get_tracks_func):
     tracks = get_tracks_func(parent, context)
     if tracks:
-        properties.TrackPropertiesDialog(dialog_parent, tracks)
+        assert isinstance(parent, panel.Panel)
+        properties.TrackPropertiesDialog(parent.parent, tracks)
 
 
-def PropertiesMenuItem(
-    name, after, get_tracks_func=generic_get_tracks_func, dialog_parent=None
-):
+def PropertiesMenuItem(name, after, get_tracks_func=generic_get_tracks_func):
     return menu.simple_menu_item(
         name,
         after,
         _("_Track Properties"),
         'document-properties',
         _properties_cb,
-        callback_args=[get_tracks_func, dialog_parent],
+        callback_args=[get_tracks_func],
     )
 
 

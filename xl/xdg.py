@@ -28,11 +28,9 @@ import os
 import sys
 from gi.repository import GLib
 
-# We need the local hack for OSX bundled apps, so we depend on the main script
-# to set the environment variable correctly instead of trying to infer an
-# absolute path
-# exaile_dir = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0]
-exaile_dir = os.environ['EXAILE_DIR']
+# exaile_dir is now defined in xl.version, but most of the codebase
+# still accessed it via xl.xdg.exaile_dir
+from .version import exaile_dir
 
 homedir = os.path.expanduser("~")
 lastdir = homedir
@@ -143,9 +141,9 @@ def get_plugin_data_dir():
 
 def _make_missing_dirs():
     """
-        Make any missing base XDG directories
+    Make any missing base XDG directories
 
-        called by the main Exaile object, should not be used elsewhere.
+    called by the main Exaile object, should not be used elsewhere.
     """
     if not os.path.exists(data_home):
         os.makedirs(data_home)

@@ -28,6 +28,7 @@ from gi.repository import Gio
 from gi.repository import Gtk
 import logging
 
+import xl.collection
 from xl.nls import gettext as _
 from xl import xdg
 from xlgui.widgets import dialogs
@@ -39,16 +40,17 @@ logger = logging.getLogger(__name__)
 @GtkTemplate('ui', 'collection_manager.ui')
 class CollectionManagerDialog(Gtk.Dialog):
     """
-        Allows you to choose which directories are in your library
+    Allows you to choose which directories are in your library
     """
 
     __gtype_name__ = 'CollectionManager'
 
     view, model, remove_button, content_area = GtkTemplate.Child.widgets(4)
+    location_column, location_cellrenderer = GtkTemplate.Child.widgets(2)
 
-    def __init__(self, parent, collection):
+    def __init__(self, parent, collection: xl.collection.Collection):
         """
-            Initializes the dialog
+        Initializes the dialog
         """
         Gtk.Dialog.__init__(self)
         self.init_template()
@@ -64,9 +66,20 @@ class CollectionManagerDialog(Gtk.Dialog):
         for location, library in collection.libraries.items():
             self.model.append([location, library.monitored, library.startup_scan])
 
+        # Override the data function for location_column, so that it
+        # displays parsed location names instead of escaped URIs
+        def display_parsed_location(column, cell, model, iter, *data):
+            location_uri = model.get(iter, 0)[0]  # first column
+            location = Gio.File.new_for_uri(location_uri)
+            cell.set_property("text", location.get_parse_name())
+
+        self.location_column.set_cell_data_func(
+            self.location_cellrenderer, display_parsed_location
+        )
+
     def get_items(self):
         """
-            Returns the items in the dialog
+        Returns the items in the dialog
         """
         items = []
 
@@ -78,7 +91,7 @@ class CollectionManagerDialog(Gtk.Dialog):
     @GtkTemplate.Callback
     def on_monitored_cellrenderer_toggled(self, cell, path):
         """
-            Enables or disables monitoring
+        Enables or disables monitoring
         """
         monitored = not cell.get_active()
         cell.set_active(monitored)
@@ -87,7 +100,7 @@ class CollectionManagerDialog(Gtk.Dialog):
     @GtkTemplate.Callback
     def on_startup_cellrenderer_toggled(self, cell, path):
         """
-            Enables or disables scanning on startup
+        Enables or disables scanning on startup
         """
         if self.model[path][1]:
             scan_on_startup = not cell.get_active()
@@ -97,7 +110,7 @@ class CollectionManagerDialog(Gtk.Dialog):
     @GtkTemplate.Callback
     def on_add_button_clicked(self, widget):
         """
-            Adds a path to the list
+        Adds a path to the list
         """
         dialog = Gtk.FileChooserDialog(
             _("Add a Directory"),
@@ -130,7 +143,9 @@ class CollectionManagerDialog(Gtk.Dialog):
                 # monitored = row[1]
                 # scan_on_startup = row[2]
 
-                if location.has_prefix(library_location):
+                if location.equal(library_location) or location.has_prefix(
+                    library_location
+                ):
                     self.message.show_warning(
                         _('Directory not added.'),
                         _(
@@ -153,7 +168,7 @@ class CollectionManagerDialog(Gtk.Dialog):
     @GtkTemplate.Callback
     def on_remove_button_clicked(self, widget):
         """
-            removes a path from the list
+        removes a path from the list
         """
         selection = self.view.get_selection()
         model, iter = selection.get_selected()
@@ -162,7 +177,7 @@ class CollectionManagerDialog(Gtk.Dialog):
     @GtkTemplate.Callback
     def on_rescan_button_clicked(self, widget):
         """
-            Triggers rescanning the collection
+        Triggers rescanning the collection
         """
 
         from xlgui import main
@@ -172,7 +187,7 @@ class CollectionManagerDialog(Gtk.Dialog):
     @GtkTemplate.Callback
     def on_force_rescan_button_clicked(self, widget):
         """
-            Triggers a slow rescan of the collection
+        Triggers a slow rescan of the collection
         """
 
         from xlgui import main
@@ -182,7 +197,7 @@ class CollectionManagerDialog(Gtk.Dialog):
     @GtkTemplate.Callback
     def on_selection_changed(self, selection):
         """
-            Enables or disables the "Remove" button
+        Enables or disables the "Remove" button
         """
         rows_selected = selection.count_selected_rows() > 0
         self.remove_button.set_sensitive(rows_selected)

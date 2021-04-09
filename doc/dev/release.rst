@@ -6,6 +6,20 @@ This is an attempt to document what needs to be done in order to create a
 release for Exaile.
 
 
+Step 0: Upgrading the Exaile SDK for Windows (if needed)
+--------------------------------------------------------
+
+If you want to generate a new SDK, go to the `exaile-sdk-win project on AppVeyor
+<https://ci.appveyor.com/project/ExaileDevelopmentTeam/exaile-sdk-win>`_
+and click "New Build". Once the build is done, you can update the ``sdk_ver``
+variable on ``appveyor.yml`` to the new SDK build number.
+
+Note that new SDK versions can come with issues. It's better to do this step
+well in advance and test the result to make sure nothing breaks. In fact it's
+better to do this regularly, so that if something does break, we can revert to a
+not-too-old SDK version.
+
+
 Step 1: Translations
 --------------------
 
@@ -33,20 +47,23 @@ If they're equivalent, then we're all set. If not, then figure out what needs
 to be done to get them merged.
 
 
-Step 2: gather release notes
-----------------------------
+Step 2: Gather and update release notes
+---------------------------------------
 
 There's a lot of ways to go about this. I find that the easiest way to see
 what has changed is go to GitHub releases page, find the last release, and
 click on XXX commits since this release. Then you can browse the list of
 commits and pick out anything worth noting there.
 
+If there is an actively-maintained changelog / release notes page, update it.
+This may include updating the release date, preferably in UTC.
+
 
 Step 3: Tag the release locally
 -------------------------------
 
 Make sure you have the correct thing checked out in your git tree, and then
-tag the release. 
+tag the release.
 
 .. code-block:: sh
 
@@ -73,6 +90,8 @@ alpha/beta/rc label, so once you've done it for version a.b.c-alpha1 you don't
 need to do this step again for version a.b.c.
 
 Commit the changes and re-tag the release:
+
+.. code-block:: sh
 
     $ git add plugins/*/PLUGININFO
     $ git commit
@@ -103,10 +122,17 @@ then re-tag and re-push.
 Step 6: Release the release
 ---------------------------
 
-Once the tag is in GitHub, Travis CI will build a Linux dist and AppVeyor
-will build a Windows installer and upload it to GitHub releases as a draft.
-Once the assets are uploaded, you can edit the draft release and paste in
-your release notes, then click 'Publish Release'.
+Once the tag is in the GitHub repository, GitHub Actions will build a source
+tarball and AppVeyor will build a Windows installer.
+They will create a draft release on GitHub containing those files.
+Edit the draft, paste in your release notes, then click 'Publish Release'.
+
+Ideally, the release notes should include a checksum for each release artifact.
+This can be created (for the format we usually use) with
+
+.. code-block:: sh
+
+    sha256sum --tag FILENAME
 
 
 Final steps
@@ -126,7 +152,7 @@ After a release, we should:
 
   - Update versions in ``_config.yml``
   - Add a new post to ``_posts``
- 
+
 * Send email to exaile-dev and exaile-users mailing lists with the release notes
 
 * Update the channel topic on IRC (``/msg ChanServ topic #exaile ...``)

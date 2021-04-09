@@ -2,7 +2,6 @@ try:
     from bs4 import BeautifulSoup
 except ImportError:
     BeautifulSoup = None
-import html.parser
 import re
 import urllib.parse
 
@@ -12,8 +11,8 @@ from xl import common, providers
 
 def enable(exaile):
     """
-        Enables the lyric wiki plugin that fetches track lyrics
-        from lyrics.wikia.com
+    Enables the lyric wiki plugin that fetches track lyrics
+    from lyrics.wikia.com
     """
     if BeautifulSoup:
         providers.register('lyrics', LyricWiki(exaile))
@@ -52,14 +51,11 @@ class LyricWiki(LyricSearchMethod):
         url = 'https://lyrics.fandom.com/wiki/%s:%s' % (artist, title)
 
         try:
-            html = common.get_url_contents(url, self.user_agent)
+            source = common.get_url_contents(url, self.user_agent)
         except Exception:
             raise LyricsNotFoundException
 
-        try:
-            soup = BeautifulSoup(html, "lxml")
-        except html.parser.HTMLParseError:
-            raise LyricsNotFoundException
+        soup = BeautifulSoup(source, "lxml")
         lyrics = soup.findAll(attrs={"class": "lyricbox"})
         if lyrics:
             with_div = (

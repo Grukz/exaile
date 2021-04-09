@@ -1,14 +1,15 @@
 # -*- coding: utf-8  -*-
 
+import itertools
 import os
 import unittest
 import logging
 import random
 import string
 import types
+from unittest.mock import Mock, patch
 
 from gi.repository import GLib
-from mox3 import mox
 import pytest
 
 from xl.metadata import CoverImage
@@ -21,55 +22,57 @@ LOG = logging.getLogger(__name__)
 class Test_MetadataCacher:
 
     TIMEOUT = 2000
-    MAX_ENTRIES = 2048
+    MAX_ENTRIES = 2
 
     def setup(self):
-        self.mox = mox.Mox()
-        self.mc = track._MetadataCacher(self.TIMEOUT, self.MAX_ENTRIES)
-
-    def teardown(self):
-        self.mox.UnsetStubs()
+        self.mc: track._MetadataCacher[str, str] = track._MetadataCacher(
+            self.TIMEOUT, self.MAX_ENTRIES
+        )
+        self.patched_glib = patch.multiple(
+            GLib, timeout_add_seconds=Mock(), source_remove=Mock()
+        )
 
     def test_add(self):
-        timeout_id = 1
-        self.mox.StubOutWithMock(GLib, 'timeout_add_seconds')
-        self.mox.StubOutWithMock(GLib, 'source_remove')
-        GLib.timeout_add_seconds(
-            self.TIMEOUT, self.mc._MetadataCacher__cleanup
-        ).AndReturn(timeout_id)
-
-        self.mox.ReplayAll()
-        self.mc.add('foo', 'bar')
-        assert self.mc.get('foo') == 'bar'
-        self.mox.VerifyAll()
+        with self.patched_glib:
+            self.mc.add('foo', 'bar')
+            assert self.mc.get('foo') == 'bar'
+            GLib.timeout_add_seconds.assert_called_once_with(
+                self.TIMEOUT, self.mc._MetadataCacher__cleanup
+            )
 
     def test_double_add(self):
-        timeout_id = 1
-        self.mox.StubOutWithMock(GLib, 'timeout_add_seconds')
-        self.mox.StubOutWithMock(GLib, 'source_remove')
-        GLib.timeout_add_seconds(mox.IsA(int), mox.IsA(types.MethodType)).AndReturn(
-            timeout_id
-        )
+        with self.patched_glib:
+            self.mc.add('foo', 'bar')
+            assert self.mc.get('foo') == 'bar'
+            self.mc.add('foo', 'bar')
+            assert self.mc.get('foo') == 'bar'
+            GLib.timeout_add_seconds.assert_called_once_with(
+                self.TIMEOUT, self.mc._MetadataCacher__cleanup
+            )
 
-        self.mox.ReplayAll()
-        self.mc.add('foo', 'bar')
-        assert self.mc.get('foo') == 'bar'
-        self.mc.add('foo', 'bar')
-        assert self.mc.get('foo') == 'bar'
-        self.mox.VerifyAll()
+    def test_overflow(self):
+        """
+        When the cache overflows, the least-recently used entry is removed
+        """
+        assert self.MAX_ENTRIES == 2
+        increasing_time = patch('time.time', Mock(side_effect=itertools.count(1)))
+        with self.patched_glib, increasing_time:
+            self.mc.add('k1', 'v1')  # [entry1(time=1)]
+            self.mc.add('k2', 'v2')  # [entry1(time=1), entry2(time=2)]
+            assert self.mc.get('k2')  # [entry1(time=1), entry2(time=3)]
+            assert self.mc.get('k1')  # [entry1(time=4), entry2(time=3)]
+            # Adding another entry should remove entry2 because it has the
+            # smallest time value
+            self.mc.add('k3', 'v3')  # [entry1(time=4), entry3(time=5)]
+            assert not self.mc.get('k2')
+            assert self.mc.get('k1')
+            assert self.mc.get('k3')
 
     def test_remove(self):
-        timeout_id = 1
-        self.mox.StubOutWithMock(GLib, 'timeout_add_seconds')
-        GLib.timeout_add_seconds(self.TIMEOUT, mox.IsA(types.MethodType)).AndReturn(
-            timeout_id
-        )
-
-        self.mox.ReplayAll()
-        self.mc.add('foo', 'bar')
-        self.mc.remove('foo')
-        assert self.mc.get('foo') is None
-        self.mox.VerifyAll()
+        with self.patched_glib:
+            self.mc.add('foo', 'bar')
+            self.mc.remove('foo')
+            assert self.mc.get('foo') is None
 
     def test_remove_not_exist(self):
         assert self.mc.remove('foo') is None
@@ -80,12 +83,6 @@ def random_str(l=8):
 
 
 class TestTrack:
-    def setup(self):
-        self.mox = mox.Mox()
-
-    def teardown(self):
-        self.mox.UnsetStubs()
-
     def verify_tags_exist(self, tr, test_track, deleted=None):
         internal_tags = {'__length', '__modified', '__basedir', '__basename', '__loc'}
         if test_track.ext not in ['aac', 'spx']:
@@ -475,10 +472,16 @@ class TestTrack:
 
     ## Display Tags
     def test_get_display_tag_loc(self):
-        tr = track.Track('/foo')
-        assert tr.get_tag_display('__loc') == '/foo'
-        tr = track.Track('http://foo')
-        assert tr.get_tag_display('__loc') == 'http://foo'
+        import sys
+
+        if sys.platform == 'win32':
+            tr = track.Track('C:\\foo')
+            assert tr.get_tag_display('__loc') == 'C:\\foo'
+        else:
+            tr = track.Track('/foo')
+            assert tr.get_tag_display('__loc') == '/foo'
+        tr = track.Track('http://foo/bar')
+        assert tr.get_tag_display('__loc') == 'http://foo/bar'
 
     @unittest.skip("TODO")
     def test_get_display_tag_compilation(self):
